@@ -1,16 +1,18 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import List, Dict, Any, Optional
 import uuid
 import json
 import re
-from datetime import datetime, timezone
+import bcrypt
+import jwt
+from datetime import datetime, timezone, timedelta
 
 # Optional Emergent library (only present on the Emergent platform).
 try:
@@ -28,6 +30,12 @@ load_dotenv(ROOT_DIR / '.env')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 ANTHROPIC_MODEL = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6-20260218')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+
+# Auth config
+JWT_SECRET = os.environ.get('JWT_SECRET', 'dev-secret-change-me')
+JWT_ALGORITHM = "HS256"
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -87,6 +95,132 @@ async def get_status_checks():
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
+
+# ==================== AUTH ====================
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def create_access_token(user_id: str, email: str) -> str:
+    payload = {
+        "sub": user_id, "email": email, "type": "access",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=12),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+async def get_current_user(request: Request) -> dict:
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header[7:] if auth_header.startswith("Bearer ") else request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user = await db.users.find_one({"email": payload.get("email")})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return {"email": user["email"], "name": user.get("name"), "role": user.get("role")}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+@api_router.post("/auth/login")
+async def login(req: LoginRequest, request: Request):
+    email = req.email.lower().strip()
+    ip = request.client.host if request.client else "unknown"
+    identifier = f"{ip}:{email}"
+
+    attempt = await db.login_attempts.find_one({"identifier": identifier})
+    if attempt and attempt.get("count", 0) >= 5:
+        locked_until = attempt.get("locked_until")
+        if locked_until and datetime.now(timezone.utc) < datetime.fromisoformat(locked_until):
+            raise HTTPException(status_code=429, detail="Too many attempts. Try again in a few minutes.")
+
+    user = await db.users.find_one({"email": email})
+    if not user or not verify_password(req.password, user["password_hash"]):
+        new_count = (attempt.get("count", 0) + 1) if attempt else 1
+        await db.login_attempts.update_one(
+            {"identifier": identifier},
+            {"$set": {"identifier": identifier, "count": new_count,
+                      "locked_until": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()}},
+            upsert=True,
+        )
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    await db.login_attempts.delete_one({"identifier": identifier})
+    token = create_access_token(str(user["_id"]), user["email"])
+    return {"access_token": token, "user": {"email": user["email"], "name": user.get("name"), "role": user.get("role")}}
+
+
+@api_router.get("/auth/me")
+async def me(current=Depends(get_current_user)):
+    return current
+
+
+# ==================== SUBMISSIONS ====================
+
+class ContactSubmission(BaseModel):
+    name: str
+    email: EmailStr
+    org: Optional[str] = ""
+    message: str
+
+
+class LaunchSubmission(BaseModel):
+    name: str
+    email: EmailStr
+    org: Optional[str] = ""
+    orgType: Optional[str] = ""
+    goals: List[str] = []
+    timeline: Optional[str] = ""
+    notes: Optional[str] = ""
+
+
+async def _save_submission(kind: str, data: dict) -> str:
+    sub_id = str(uuid.uuid4())
+    doc = {
+        "id": sub_id, "type": kind, "data": data,
+        "name": data.get("name"), "email": data.get("email"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.submissions.insert_one(doc)
+    return sub_id
+
+
+@api_router.post("/contact")
+async def submit_contact(req: ContactSubmission):
+    sub_id = await _save_submission("contact", req.model_dump())
+    return {"ok": True, "id": sub_id}
+
+
+@api_router.post("/launch")
+async def submit_launch(req: LaunchSubmission):
+    sub_id = await _save_submission("launch", req.model_dump())
+    return {"ok": True, "id": sub_id}
+
+
+@api_router.get("/admin/submissions")
+async def list_submissions(current=Depends(get_current_user)):
+    docs = await db.submissions.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"submissions": docs}
 
 
 class WizardRequest(BaseModel):
@@ -173,6 +307,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_seed():
+    # Indexes
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.login_attempts.create_index("identifier")
+        await db.submissions.create_index("created_at")
+    except Exception as e:
+        logger.warning(f"index creation: {e}")
+    # Seed / update admin
+    existing = await db.users.find_one({"email": ADMIN_EMAIL.lower()})
+    if existing is None:
+        await db.users.insert_one({
+            "email": ADMIN_EMAIL.lower(), "password_hash": hash_password(ADMIN_PASSWORD),
+            "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info("Seeded admin user")
+    elif not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
+        await db.users.update_one({"email": ADMIN_EMAIL.lower()},
+                                  {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}})
+        logger.info("Updated admin password")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

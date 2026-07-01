@@ -1,8 +1,11 @@
 import { useState } from "react";
+import axios from "axios";
 import { toast } from "sonner";
 import { Rocket } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { PageHero } from "@/components/Sections";
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ORG_TYPES = ["School / K-12", "Sports / Booster Club", "Creator", "Business", "Agency"];
 const GOALS = ["Fundraising", "Spirit Wear", "Uniforms", "Event Merch", "Corporate Swag", "Fan Monetization"];
@@ -11,14 +14,23 @@ const TIMELINES = ["ASAP (< 2 weeks)", "This month", "This quarter", "Just explo
 export default function RequestLaunch() {
   const [form, setForm] = useState({ name: "", email: "", org: "", orgType: "", timeline: "", notes: "" });
   const [goals, setGoals] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const toggleGoal = (g) => setGoals((p) => (p.includes(g) ? p.filter((x) => x !== g) : [...p, g]));
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    toast.success("Launch request received. An operator will reach out to architect your drop.");
-    setForm({ name: "", email: "", org: "", orgType: "", timeline: "", notes: "" });
-    setGoals([]);
+    setSubmitting(true);
+    try {
+      await axios.post(`${API}/launch`, { ...form, goals });
+      toast.success("Launch request received. An operator will reach out to architect your drop.");
+      setForm({ name: "", email: "", org: "", orgType: "", timeline: "", notes: "" });
+      setGoals([]);
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -90,7 +102,7 @@ export default function RequestLaunch() {
                 <textarea className="pb-input" rows={5} value={form.notes} onChange={set("notes")} placeholder="Audience size, existing store, deadlines, ideas…" data-testid="launch-notes" />
               </div>
 
-              <button type="submit" className="pb-btn pb-btn-gold self-start" data-testid="launch-submit">Request a Launch <Rocket size={13} /></button>
+              <button type="submit" className="pb-btn pb-btn-gold self-start" disabled={submitting} style={{ opacity: submitting ? 0.7 : 1 }} data-testid="launch-submit">Request a Launch <Rocket size={13} /></button>
             </form>
           </Reveal>
         </div>

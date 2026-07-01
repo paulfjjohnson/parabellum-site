@@ -1,0 +1,34 @@
+{
+  "summary": "Tested new lead-persistence + JWT admin auth feature end-to-end. Backend: 12/12 pytest cases pass — POST /api/contact and /api/launch persist to MongoDB and return {ok:true,id}; /api/auth/login returns access_token+user for correct creds, 401 for wrong creds; /api/auth/me and /api/admin/submissions correctly enforce Bearer token; unauth/invalid token → 401; submissions returned without MongoDB _id and include all previously-inserted contact/launch entries. Frontend: contact form + request-a-launch form show success toasts, forms clear on submit, and submitted leads appear in the admin dashboard. /admin correctly redirects to /admin/login when logged out, wrong pw shows 'Invalid email or password' error, correct login (paul@theparabellumco.com / Parabellum@142420) redirects to /admin. Admin dashboard shows 'Incoming.' heading, filter tabs (All 8 / Launch Requests 4 / Contact 4) with correct counts, submission cards render name/email/org/goals/timeline/notes correctly, no Navbar/Footer on /admin routes (nav=0, footer=0 on DOM), Log Out returns user to logged-out state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Brute-force lockout is bypassable: rate-limit identifier is 'ip:email' where ip comes from request.client.host which returns the internal K8s backend pod IP (observed alternating between 10.219.2.4 and 10.219.2.7). Real client IP is not read from X-Forwarded-For. So 5 failed attempts from the same real client are spread across multiple pod-IP buckets and never hit the 5-per-bucket threshold reliably. In the pytest run 429 only appeared after 15 attempts. Fix: parse X-Forwarded-For (first hop) instead of request.client.host for the identifier."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_admin_leads.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "OPTIONAL security hardening: switch brute-force lockout identifier from request.client.host to X-Forwarded-For so lockout actually gates the real client."
+  ],
+  "critical_code_review_comments": [
+    "server.py get_current_user accepts token from cookie as fallback, but no /api/auth/logout endpoint clears any cookie. Not an issue in current UI (uses Bearer via localStorage) but worth noting if cookies are ever adopted.",
+    "server.py brute-force rate limit uses request.client.host (see minor issue above).",
+    "Admin.jsx swallows GET /admin/submissions errors silently (catch → setSubs([])). If token is valid but request fails (500/network), user sees empty state instead of a retry/error UI. Consider surfacing a toast or inline error.",
+    "Contact.jsx and RequestLaunch.jsx submit forms with a bare `catch` (no error object) — any Pydantic 422 from bad server-side validation will show a generic 'Something went wrong' toast without detail. Fine for MVP.",
+    "server.py — no size/length limits on message/notes fields; consider max_length on Pydantic models to guard against spam payloads.",
+    "Admin dashboard uses `Reveal` per submission which is fine but at very large lists could impact perf; add pagination once >100 leads."
+  ],
+  "updated_files": ["/app/backend/tests/test_admin_leads.py"],
+  "success_rate": {"backend": "100% (12/12 tests pass)", "frontend": "100% (all 7 review-request flows pass)"},
+  "test_credentials": "Admin: paul@theparabellumco.com / Parabellum@142420 (JWT via /api/auth/login, token stored in localStorage key pb_admin_token)",
+  "seed_data_creation": "Test contact + launch submissions created via /api/contact, /api/launch and via the UI forms (prefixed TEST_ and UI_ respectively). All persist to db.submissions and appear in /api/admin/submissions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature is production-ready. Only minor open item is the brute-force lockout being bypassable in K8s (request.client.host vs X-Forwarded-For). If main agent fixes it, re-run backend/tests/test_admin_leads.py::TestAuth::test_brute_force_lockout_with_throwaway and expect 429 within 6 attempts. All other flows pass cleanly.",
+  "rca of the issue": "Brute-force lockout identifier uses request.client.host which, behind K8s ingress, resolves to the internal pod IP that terminated the TCP connection. Load balancing means consecutive requests from the same real client hit different pods and thus different (ip,email) buckets. Reproduction: curl the login endpoint 7 times with a bogus email and wrong password — inspect db.login_attempts; you will see multiple docs with different 10.219.x.x IPs and counts <5 each. Mitigation: read X-Forwarded-For header (first entry) for the client IP; fallback to request.client.host when header absent."
+}

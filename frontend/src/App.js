@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
+import { AuthProvider } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import Home from "@/pages/Home";
@@ -17,6 +18,8 @@ import RequestLaunch from "@/pages/RequestLaunch";
 import Partners from "@/pages/Partners";
 import Drops from "@/pages/Drops";
 import Legal from "@/pages/Legal";
+import AdminLogin from "@/pages/AdminLogin";
+import Admin from "@/pages/Admin";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -24,11 +27,12 @@ const ScrollToTop = () => {
   return null;
 };
 
-function App() {
+const Shell = () => {
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Navbar />
+    <>
+      {!isAdmin && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -47,11 +51,24 @@ function App() {
           <Route path="/partners" element={<Partners />} />
           <Route path="/drops" element={<Drops />} />
           <Route path="/legal/:doc" element={<Legal />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
-      <Footer />
-      <Toaster position="bottom-right" theme="dark" toastOptions={{ style: { background: "#131313", border: "1px solid rgba(216,168,95,0.3)", color: "#F0EDE8", fontFamily: "'Cormorant Garamond', serif" } }} />
+      {!isAdmin && <Footer />}
+    </>
+  );
+};
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ScrollToTop />
+        <Shell />
+        <Toaster position="bottom-right" theme="dark" toastOptions={{ style: { background: "#131313", border: "1px solid rgba(216,168,95,0.3)", color: "#F0EDE8", fontFamily: "'Cormorant Garamond', serif" } }} />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

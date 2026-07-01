@@ -1,17 +1,29 @@
 import { useState } from "react";
+import axios from "axios";
 import { toast } from "sonner";
 import { Mail, MapPin, Send } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { PageHero } from "@/components/Sections";
 
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", org: "", message: "" });
+  const [submitting, setSubmitting] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    toast.success("Message received. We'll be in touch within one business day.");
-    setForm({ name: "", email: "", org: "", message: "" });
+    setSubmitting(true);
+    try {
+      await axios.post(`${API}/contact`, form);
+      toast.success("Message received. We'll be in touch within one business day.");
+      setForm({ name: "", email: "", org: "", message: "" });
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -39,7 +51,7 @@ export default function Contact() {
                 <label className="pb-label">What are you building?</label>
                 <textarea className="pb-input" rows={6} required value={form.message} onChange={set("message")} placeholder="Tell us about the drop, program, or system you have in mind…" data-testid="contact-message" />
               </div>
-              <button type="submit" className="pb-btn pb-btn-gold self-start" data-testid="contact-submit">Send Message <Send size={13} /></button>
+              <button type="submit" className="pb-btn pb-btn-gold self-start" disabled={submitting} style={{ opacity: submitting ? 0.7 : 1 }} data-testid="contact-submit">Send Message <Send size={13} /></button>
             </form>
           </Reveal>
           <Reveal delay={0.12}>
