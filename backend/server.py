@@ -350,6 +350,158 @@ async def wizard_strategy(req: WizardRequest):
         logger.error(f"wizard_strategy failed: {e}")
         raise HTTPException(status_code=502, detail="strategy_generation_failed")
 
+
+# ==================== PACKAGE BUILDER ====================
+# EDIT PRICES HERE — single source of truth (setup = one-time, monthly = recurring).
+# These are placeholders; update to your real numbers.
+TIERS = {
+    "starter": {
+        "name": "Starter", "setup": 1500.0, "monthly": 99.0,
+        "blurb": "A clean, single-store custom apparel site — everything to sell online.",
+        "includes": ["1 storefront", "Product configurator", "Design library", "Blank apparel catalog", "Customer portal"],
+    },
+    "growth": {
+        "name": "Growth", "setup": 3500.0, "monthly": 199.0,
+        "blurb": "Multi-store spirit & team program with production tooling.",
+        "includes": ["Everything in Starter", "School & team stores", "Gang sheet builder", "Fundraiser programs", "DTF printing workflow"],
+    },
+    "operator": {
+        "name": "Operator", "setup": 6500.0, "monthly": 349.0,
+        "blurb": "The full ecosystem — AI, automation, and multi-store scale.",
+        "includes": ["Everything in Growth", "AI mockups & copy tools", "Workflow automations", "Multi-store architecture", "Priority support"],
+    },
+}
+ADDONS = {
+    "extra_store": {"label": "Additional Store", "setup": 500.0, "monthly": 49.0},
+    "ai_tools": {"label": "AI Tools (mockups, copy, agent)", "setup": 1200.0, "monthly": 79.0},
+    "automations": {"label": "Automations (n8n / Zapier)", "setup": 900.0, "monthly": 59.0},
+    "gang_sheet": {"label": "Gang Sheet Builder", "setup": 800.0, "monthly": 39.0},
+    "fundraiser": {"label": "Fundraiser Module", "setup": 400.0, "monthly": 29.0},
+    "priority_support": {"label": "Priority Support", "setup": 0.0, "monthly": 99.0},
+}
+
+
+def _price_selection(tier: str, addons: List[str]):
+    if tier not in TIERS:
+        raise HTTPException(status_code=400, detail="Invalid tier")
+    t = TIERS[tier]
+    setup = t["setup"]
+    monthly = t["monthly"]
+    valid_addons = []
+    for a in addons or []:
+        if a in ADDONS:
+            setup += ADDONS[a]["setup"]
+            monthly += ADDONS[a]["monthly"]
+            valid_addons.append(a)
+    return round(setup, 2), round(monthly, 2), valid_addons
+
+
+@api_router.get("/packages")
+async def get_packages():
+    return {"tiers": TIERS, "addons": ADDONS,
+            "paypal_enabled": bool(os.environ.get("PAYPAL_CLIENT_ID")),
+            "paypal_client_id": os.environ.get("PAYPAL_CLIENT_ID", "")}
+
+
+class QuoteRequest(BaseModel):
+    name: str
+    email: EmailStr
+    org: Optional[str] = ""
+    tier: str
+    addons: List[str] = []
+    question: Optional[str] = ""
+
+
+@api_router.post("/packages/quote")
+async def package_quote(req: QuoteRequest):
+    setup, monthly, addons = _price_selection(req.tier, req.addons)
+    data = {
+        "name": req.name, "email": req.email, "org": req.org,
+        "tier": TIERS[req.tier]["name"], "addons": [ADDONS[a]["label"] for a in addons],
+        "setup_total": setup, "monthly_total": monthly, "question": req.question,
+    }
+    sub_id = await _save_submission("package_quote", data)
+    asyncio.create_task(_notify_lead("package_quote", data))
+    return {"ok": True, "id": sub_id, "setup_total": setup, "monthly_total": monthly}
+
+
+# ---- PayPal (setup fee checkout) ----
+PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID")
+PAYPAL_SECRET = os.environ.get("PAYPAL_SECRET")
+PAYPAL_BASE = os.environ.get("PAYPAL_BASE", "https://api-m.sandbox.paypal.com")
+
+
+async def _paypal_token():
+    import httpx
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{PAYPAL_BASE}/v1/oauth2/token",
+                         auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+                         data={"grant_type": "client_credentials"})
+        r.raise_for_status()
+        return r.json()["access_token"]
+
+
+class PaypalOrderRequest(BaseModel):
+    tier: str
+    addons: List[str] = []
+    email: Optional[EmailStr] = None
+
+
+@api_router.post("/packages/paypal/order")
+async def paypal_create_order(req: PaypalOrderRequest):
+    if not PAYPAL_CLIENT_ID or not PAYPAL_SECRET:
+        raise HTTPException(status_code=503, detail="PayPal not configured")
+    import httpx
+    setup, monthly, addons = _price_selection(req.tier, req.addons)
+    token = await _paypal_token()
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{PAYPAL_BASE}/v2/checkout/orders",
+                         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                         json={
+                             "intent": "CAPTURE",
+                             "purchase_units": [{
+                                 "reference_id": req.tier,
+                                 "description": f"Parabellum {TIERS[req.tier]['name']} setup fee",
+                                 "amount": {"currency_code": "USD", "value": f"{setup:.2f}"},
+                             }],
+                         })
+        r.raise_for_status()
+        order = r.json()
+    await db.payment_transactions.insert_one({
+        "provider": "paypal", "order_id": order["id"], "amount": setup, "currency": "usd",
+        "tier": req.tier, "addons": addons, "monthly_total": monthly, "email": req.email or "",
+        "payment_status": "created", "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"order_id": order["id"]}
+
+
+@api_router.post("/packages/paypal/capture/{order_id}")
+async def paypal_capture_order(order_id: str):
+    if not PAYPAL_CLIENT_ID or not PAYPAL_SECRET:
+        raise HTTPException(status_code=503, detail="PayPal not configured")
+    import httpx
+    token = await _paypal_token()
+    async with httpx.AsyncClient() as c:
+        r = await c.post(f"{PAYPAL_BASE}/v2/checkout/orders/{order_id}/capture",
+                         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        r.raise_for_status()
+        result = r.json()
+    status = result.get("status")
+    txn = await db.payment_transactions.find_one({"order_id": order_id})
+    if txn and txn.get("payment_status") != "COMPLETED" and status == "COMPLETED":
+        await db.payment_transactions.update_one(
+            {"order_id": order_id},
+            {"$set": {"payment_status": "COMPLETED", "paid_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        data = {
+            "email": txn.get("email"), "tier": TIERS.get(txn.get("tier"), {}).get("name", txn.get("tier")),
+            "addons": [ADDONS[a]["label"] for a in txn.get("addons", []) if a in ADDONS],
+            "setup_paid": txn.get("amount"), "monthly_total": txn.get("monthly_total"),
+        }
+        await _save_submission("package_order", data)
+        asyncio.create_task(_notify_lead("package_order", data))
+    return {"status": status}
+
 # Include the router in the main app
 app.include_router(api_router)
 

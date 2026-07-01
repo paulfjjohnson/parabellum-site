@@ -172,9 +172,8 @@ export const POWERED_CAPABILITIES = [
 
 export const NAV_LINKS = [
   { label: "Tee Party", to: "/tee-party" },
-  { label: "Digital Products", to: "/digital-products" },
-  { label: "AI + Automation", to: "/ai-automation" },
   { label: "Services", to: "/services" },
+  { label: "Pricing", to: "/pricing" },
   { label: "Tools", to: "/tools" },
   { label: "About", to: "/about" },
   { label: "Contact", to: "/contact" },

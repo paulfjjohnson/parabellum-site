@@ -4,6 +4,7 @@ import { Reveal } from "@/components/Reveal";
 import { PageHero, CTASection } from "@/components/Sections";
 
 const TOOLS = [
+  { to: "/tools/package-builder", icon: Wand2, name: "Build Your Package", desc: "Configure a Tee Shirt Ali–style site — pick a tier, add functionality, see live setup + monthly pricing, then buy or request a quote." },
   { to: "/tools/team-store-wizard", icon: Wand2, name: "Team Store Strategy Wizard", desc: "An 8-step questionnaire that maps your program and generates a complete platform strategy document." },
   { to: "/tools/gang-sheet-builder", icon: Grid2x2, name: "Gang Sheet Builder Demo", desc: "Auto-packing DTF gang sheet builder with DPI validation, live layout, and production-ready export." },
   { to: "/tools/configurator", icon: Shirt, name: "Product Configurator Demo", desc: "Real-time apparel configurator — colors, placement, text, and live pricing on a visual canvas." },

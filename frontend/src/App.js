@@ -12,6 +12,7 @@ import Tools from "@/pages/Tools";
 import TeamStoreWizard from "@/pages/TeamStoreWizard";
 import GangSheetBuilder from "@/pages/GangSheetBuilder";
 import Configurator from "@/pages/Configurator";
+import PackageBuilder from "@/pages/PackageBuilder";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import RequestLaunch from "@/pages/RequestLaunch";
@@ -45,6 +46,8 @@ const Shell = () => {
           <Route path="/tools/team-store-wizard" element={<TeamStoreWizard />} />
           <Route path="/tools/gang-sheet-builder" element={<GangSheetBuilder />} />
           <Route path="/tools/configurator" element={<Configurator />} />
+          <Route path="/tools/package-builder" element={<PackageBuilder />} />
+          <Route path="/pricing" element={<PackageBuilder />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/request-a-launch" element={<RequestLaunch />} />
