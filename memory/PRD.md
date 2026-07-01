@@ -15,19 +15,14 @@ Rebuild the theparabellumco.com merch-tech marketing site (originally spec'd for
 - Design system in `src/index.css` (CSS variables per spec), data in `src/data/site.js`
 - Backend: default FastAPI/Mongo template (unused for now — no persistence requested)
 
-## Implemented (June 2026)
-- Global: Navbar (transparent→solid on scroll, mobile menu), Footer (4-col), Ticker marquee, Crest SVG, Reveal animations, CTA section, sonner toaster
-- Home: 8 sections (Hero, Ticker, Revenue Engine, Audience Tabs, Launch Sequence, CTA, Field Notes, Email Capture)
-- Services index + 6 dynamic service detail pages (`/services/:slug`)
-- 3 pillar pages: Tee Party, Digital Products, AI + Automation
-- Tools hub + 3 interactive tools:
-  - Team Store Wizard (8-step, generates 12-section strategy doc client-side)
-  - Gang Sheet Builder (4-step auto-packing animated demo w/ shelf-pack + utilization meter + licensing tiers)
-  - Product Configurator (live SVG t-shirt, color/text/placement/method/size/qty, live pricing)
-- About, Contact (form UI), Request a Launch (form UI), Partners, Drops (Field Notes), Legal (terms/privacy/acceptable-use)
+## Implemented (June–July 2026)
+- Global: Navbar, Footer, Ticker, Crest, Reveal animations, CTA section, sonner toaster
+- Home (8 sections), Services index + 6 detail pages, 3 pillar pages, Tools hub + 3 tools, About, Contact, Request-a-Launch, Partners, Drops, Legal
+- **AI Team Store Wizard (LIVE)**: POST /api/wizard/strategy generates an ~11-section custom strategy doc via Claude (`claude-sonnet-4-6`). Verified 7/7 backend + full frontend flow (loading state, AI-generated badge, personalized content). Client-side fallback if AI fails.
+- **Portable AI**: backend auto-detects `ANTHROPIC_API_KEY` (direct Anthropic, off-Emergent) vs `EMERGENT_LLM_KEY` (on-Emergent). `emergentintegrations` import is optional.
+- **Deployment docs**: `/app/DEPLOYMENT.md`, `backend/.env.example`, `frontend/.env.example` for porting to user's own React+FastAPI+MongoDB host.
 
 ## Backlog / Next
-- P1: Wire Team Store Wizard to Claude (Emergent LLM key) for real AI strategy docs
 - P1: Persist Contact / Request-a-Launch submissions to MongoDB + admin view
 - P2: Real gang-sheet file upload w/ DPI detection + PDF export (jsPDF)
 - P2: WooCommerce-style shop for Digital Products & Drops

@@ -11,18 +11,35 @@ import uuid
 import json
 import re
 from datetime import datetime, timezone
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+# Optional Emergent library (only present on the Emergent platform).
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    HAS_EMERGENT = True
+except Exception:
+    HAS_EMERGENT = False
 
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# LLM config — prefer a direct Anthropic key when present (portable to any host),
+# otherwise fall back to the Emergent universal key while running on Emergent.
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+ANTHROPIC_MODEL = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-6-20260218')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -86,6 +103,33 @@ def _fmt_answers(a: Dict[str, Any]) -> str:
     return "\n".join(lines) if lines else "- (no answers provided)"
 
 
+SYSTEM_MSG = "You are a precise strategist that outputs only valid JSON."
+
+
+async def _call_llm(prompt: str) -> str:
+    """Portable LLM call. Uses a direct Anthropic key when available,
+    otherwise falls back to the Emergent universal key on-platform."""
+    if ANTHROPIC_API_KEY:
+        from anthropic import AsyncAnthropic
+        client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        msg = await client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=2000,
+            system=SYSTEM_MSG,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(getattr(b, "text", "") for b in msg.content)
+    if HAS_EMERGENT and EMERGENT_LLM_KEY:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"wizard-{uuid.uuid4()}",
+            system_message=SYSTEM_MSG,
+        ).with_model("anthropic", "claude-sonnet-4-6")
+        reply = await chat.send_message(UserMessage(text=prompt))
+        return reply if isinstance(reply, str) else str(reply)
+    raise RuntimeError("No LLM key configured (set ANTHROPIC_API_KEY or EMERGENT_LLM_KEY)")
+
+
 @api_router.post("/wizard/strategy")
 async def wizard_strategy(req: WizardRequest):
     org = req.answers.get("orgName") or "the organization"
@@ -104,14 +148,7 @@ async def wizard_strategy(req: WizardRequest):
     )
 
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"wizard-{uuid.uuid4()}",
-            system_message="You are a precise strategist that outputs only valid JSON.",
-        ).with_model("anthropic", "claude-sonnet-4-6")
-
-        reply = await chat.send_message(UserMessage(text=prompt))
-        text = reply if isinstance(reply, str) else str(reply)
+        text = await _call_llm(prompt)
 
         # Strip code fences if present
         text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
@@ -136,13 +173,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
