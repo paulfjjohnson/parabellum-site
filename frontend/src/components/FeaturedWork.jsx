@@ -10,20 +10,27 @@ export const FeaturedWork = () => {
       <div className="pb-container grid md:grid-cols-2 gap-14 items-center">
         <Reveal>
           <a href={f.url} target="_blank" rel="noopener noreferrer" className="block group" data-testid="featured-work-image">
-            <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", border: "1px solid var(--pb-border)" }}>
-              <img src={f.img} alt={f.name} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" style={{ filter: "grayscale(1) contrast(1.05)" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(5,5,5,0.85))" }} />
-              <div className="absolute" style={{ left: 24, bottom: 22 }}>
-                <div className="pb-mono pb-gold-text" style={{ fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase" }}>{f.url.replace("https://", "")}</div>
-                <div className="pb-serif" style={{ fontSize: 30, lineHeight: 1 }}>{f.name}</div>
+            <div style={{ border: "1px solid var(--pb-border)", background: "var(--pb-onyx)", overflow: "hidden" }}>
+              {/* Browser chrome */}
+              <div className="flex items-center gap-2" style={{ padding: "12px 16px", borderBottom: "1px solid var(--pb-border-soft)", background: "var(--pb-charcoal)" }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#C56A5C" }} />
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#D8A85F" }} />
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#4E8C5A" }} />
+                <span className="pb-mono ml-3" style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--pb-gray)" }}>{f.url.replace("https://", "")}</span>
+              </div>
+              <div style={{ position: "relative", aspectRatio: "16/11", overflow: "hidden" }}>
+                <img src={f.img} alt={`${f.name} homepage`} loading="lazy" className="w-full h-full object-cover object-top transition-transform duration-[1200ms] ease-out group-hover:-translate-y-[30%]" />
               </div>
             </div>
           </a>
         </Reveal>
 
         <Reveal delay={0.12}>
-          <Eyebrow>{f.eyebrow}</Eyebrow>
-          <h2 className="pb-h2 mt-6">{f.tagline}</h2>
+          <div className="flex items-center gap-4 mb-6">
+            <img src={f.logo} alt="Tee Shirt Ali logo" style={{ width: 64, height: 64, objectFit: "contain" }} data-testid="featured-work-logo" />
+            <Eyebrow>{f.eyebrow}</Eyebrow>
+          </div>
+          <h2 className="pb-h2">{f.tagline}</h2>
           <p className="pb-body mt-6">{f.desc}</p>
           <div className="flex flex-wrap gap-10 mt-8">
             {f.stats.map(([n, l]) => (
