@@ -31,6 +31,13 @@ Rebuild the theparabellumco.com merch-tech marketing site (originally spec'd for
 - Featured Work now uses the real Tee Shirt Ali homepage screenshot in a browser-framed preview (hover-scroll reveal) + the actual Tee Shirt Ali logo badge.
 - Lead notification emails via host SMTP: `/api/contact` and `/api/launch` fire a non-blocking email to LEAD_NOTIFY_EMAIL (paul@theparabellumco.com). Fully env-driven (SMTP_HOST/PORT/USER/PASSWORD/FROM/STARTTLS); safely skips + logs when SMTP unset (as on Emergent). Docs in DEPLOYMENT.md §7 + backend/.env.example.
 
+## Package Builder + PayPal (July 2026) — DONE
+- `/pricing` (+ `/tools/package-builder`) "Build Your Package": 3 tiers (Starter/Growth/Operator) + 6 add-ons, live setup + monthly pricing. Server-side pricing (`TIERS`/`ADDONS` in server.py) — client never sends amounts.
+- Two paths: "Request Quote / Ask a Question" (saves `package_quote` lead + email + admin) and "Buy Now" → PayPal setup-fee checkout (`/api/packages/paypal/order` + `/capture`). PayPal LIVE env pre-set; keys not yet added, so Buy shows graceful "request a quote / PayPal invoice" fallback. Paid orders logged as `package_order` leads.
+- Admin dashboard extended: Packages filter tab + rich package-lead cards (tier, add-ons, setup, monthly, question). Verified backend 12/12 + frontend (iteration_5 all resolved).
+- Nav trimmed to Tee Party / Services / Pricing / Tools / About / Contact (fixed crowding).
+- Docs: DEPLOYMENT.md §8 (PayPal setup + price editing) + backend/.env.example.
+
 ## Backlog / Next
 - P2: Real gang-sheet file upload w/ DPI detection + PDF export (jsPDF)
 - P2: WooCommerce-style shop for Digital Products & Drops
