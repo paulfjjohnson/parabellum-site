@@ -13,31 +13,60 @@ const fmtDate = (iso) => {
   catch { return iso; }
 };
 
+const TYPE_META = {
+  launch: { label: "Launch Request" },
+  contact: { label: "Contact" },
+  package_quote: { label: "Package Quote" },
+  package_order: { label: "Package Order — PAID" },
+};
+
 const SubmissionCard = ({ s }) => {
   const d = s.data || {};
   const isLaunch = s.type === "launch";
+  const isPackage = s.type === "package_quote" || s.type === "package_order";
+  const isOrder = s.type === "package_order";
+  const meta = TYPE_META[s.type] || { label: "Submission" };
   return (
     <div className="pb-card" style={{ padding: "26px 28px" }} data-testid={`submission-${s.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", padding: "5px 10px", border: "1px solid var(--pb-gold)", color: "var(--pb-gold)" }}>
-            {isLaunch ? "Launch Request" : "Contact"}
+          <span className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", padding: "5px 10px", border: `1px solid ${isOrder ? "#4E8C5A" : "var(--pb-gold)"}`, color: isOrder ? "#4E8C5A" : "var(--pb-gold)" }}>
+            {meta.label}
           </span>
-          <span className="pb-serif" style={{ fontSize: 22 }}>{d.name || "—"}</span>
+          <span className="pb-serif" style={{ fontSize: 22 }}>{d.name || d.email || "—"}</span>
         </div>
         <span className="pb-mono" style={{ fontSize: 10, letterSpacing: "0.14em", color: "var(--pb-gray)" }}>{fmtDate(s.created_at)}</span>
       </div>
-      <a href={`mailto:${d.email}`} className="flex items-center gap-2 mt-3 pb-body" style={{ fontSize: 15, color: "var(--pb-gold)" }}>
-        <Mail size={13} /> {d.email}
-      </a>
+      {d.email && (
+        <a href={`mailto:${d.email}`} className="flex items-center gap-2 mt-3 pb-body" style={{ fontSize: 15, color: "var(--pb-gold)" }}>
+          <Mail size={13} /> {d.email}
+        </a>
+      )}
       {d.org && <div className="pb-body mt-1" style={{ fontSize: 15 }}>Org: {d.org}{d.orgType ? ` · ${d.orgType}` : ""}</div>}
+
       {isLaunch && d.goals?.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">
           {d.goals.map((g) => <span key={g} className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 9px", border: "1px solid var(--pb-border)", color: "var(--pb-gray-soft)" }}>{g}</span>)}
         </div>
       )}
       {isLaunch && d.timeline && <div className="pb-body mt-2" style={{ fontSize: 15 }}>Timeline: {d.timeline}</div>}
-      {(d.message || d.notes) && <p className="pb-body mt-3" style={{ fontSize: 16, borderLeft: "2px solid var(--pb-border)", paddingLeft: 14 }}>{d.message || d.notes}</p>}
+
+      {isPackage && (
+        <div className="mt-3" style={{ borderTop: "1px solid var(--pb-border-soft)", paddingTop: 14 }}>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="pb-body" style={{ fontSize: 16 }}>Tier: <span className="pb-gold-text">{d.tier || "—"}</span></div>
+            <div className="pb-body" style={{ fontSize: 16 }}>Setup: <span className="pb-gold-text">${Number(d.setup_total ?? d.setup_paid ?? 0).toLocaleString("en-US")}</span></div>
+            <div className="pb-body" style={{ fontSize: 16 }}>Monthly: <span className="pb-gold-text">${Number(d.monthly_total ?? 0).toLocaleString("en-US")}</span></div>
+          </div>
+          {d.addons?.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {d.addons.map((a) => <span key={a} className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 9px", border: "1px solid var(--pb-border)", color: "var(--pb-gray-soft)" }}>{a}</span>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(d.message || d.notes || d.question) && <p className="pb-body mt-3" style={{ fontSize: 16, borderLeft: "2px solid var(--pb-border)", paddingLeft: 14 }}>{d.message || d.notes || d.question}</p>}
     </div>
   );
 };
@@ -65,8 +94,13 @@ export default function Admin() {
   if (user === null) return <div style={{ minHeight: "100vh" }} />;
   if (user === false) return <Navigate to="/admin/login" replace />;
 
-  const filtered = filter === "all" ? subs : subs.filter((s) => s.type === filter);
-  const counts = { all: subs.length, contact: subs.filter((s) => s.type === "contact").length, launch: subs.filter((s) => s.type === "launch").length };
+  const filtered = filter === "all" ? subs : filter === "packages" ? subs.filter((s) => s.type === "package_quote" || s.type === "package_order") : subs.filter((s) => s.type === filter);
+  const counts = {
+    all: subs.length,
+    launch: subs.filter((s) => s.type === "launch").length,
+    contact: subs.filter((s) => s.type === "contact").length,
+    packages: subs.filter((s) => s.type === "package_quote" || s.type === "package_order").length,
+  };
 
   return (
     <section className="pb-sec-black" style={{ minHeight: "100vh", paddingTop: 120, paddingBottom: 90 }}>
@@ -85,7 +119,7 @@ export default function Admin() {
         </div>
 
         <div className="flex gap-3 mt-10" style={{ borderBottom: "1px solid var(--pb-border-soft)", paddingBottom: 0 }}>
-          {[["all", "All"], ["launch", "Launch Requests"], ["contact", "Contact"]].map(([k, l]) => (
+          {[["all", "All"], ["packages", "Packages"], ["launch", "Launch Requests"], ["contact", "Contact"]].map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)} className="pb-mono" data-testid={`filter-${k}`}
               style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", padding: "12px 4px", marginRight: 24,
                 color: filter === k ? "var(--pb-gold)" : "var(--pb-gray)", borderBottom: filter === k ? "2px solid var(--pb-gold)" : "2px solid transparent" }}>
