@@ -38,6 +38,12 @@ Rebuild the theparabellumco.com merch-tech marketing site (originally spec'd for
 - Nav trimmed to Tee Party / Services / Pricing / Tools / About / Contact (fixed crowding).
 - Docs: DEPLOYMENT.md §8 (PayPal setup + price editing) + backend/.env.example.
 
+## Real Pricing Applied (July 2026) — DONE
+- Replaced placeholder tiers with real pricing: **Ignition** ($1,200 setup / $197mo, month-to-month), **Operator** ($2,800 / $597mo, 6-mo min, Most Popular), **Command** (from $5,500 / from $1,497mo, 12-mo min, custom/quote-only).
+- Added **Flat vs. Revenue-Share** billing toggle per the pricing doc (rev-share reduces setup/monthly + adds 12%/7%/4% with monthly minimums).
+- Real add-ons: Additional site (+$200mo), Rush drop (+$250), Extra AI credits (+$49mo), Consulting (+$350); Custom dev & Reseller license are quote-only (Buy disabled, quote forced). Command tier is quote-only.
+- Server-side pricing enforced; buyable logic blocks online checkout for custom/quote-only configs. Verified totals (Operator+site flat = $2,800/$797; Command rev-share = $3,500/$897).
+
 ## Backlog / Next
 - P2: Real gang-sheet file upload w/ DPI detection + PDF export (jsPDF)
 - P2: WooCommerce-style shop for Digital Products & Drops

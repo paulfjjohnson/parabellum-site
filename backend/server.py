@@ -352,48 +352,76 @@ async def wizard_strategy(req: WizardRequest):
 
 
 # ==================== PACKAGE BUILDER ====================
-# EDIT PRICES HERE — single source of truth (setup = one-time, monthly = recurring).
-# These are placeholders; update to your real numbers.
+# EDIT PRICES HERE — single source of truth. Each tier has flat + revenue-share pricing.
 TIERS = {
-    "starter": {
-        "name": "Starter", "setup": 1500.0, "monthly": 99.0,
-        "blurb": "A clean, single-store custom apparel site — everything to sell online.",
-        "includes": ["1 storefront", "Product configurator", "Design library", "Blank apparel catalog", "Customer portal"],
-    },
-    "growth": {
-        "name": "Growth", "setup": 3500.0, "monthly": 199.0,
-        "blurb": "Multi-store spirit & team program with production tooling.",
-        "includes": ["Everything in Starter", "School & team stores", "Gang sheet builder", "Fundraiser programs", "DTF printing workflow"],
+    "ignition": {
+        "name": "Ignition", "popular": False, "custom": False, "from": False,
+        "best_for": "First-time drop runners, solo creators, single teams.",
+        "contract": "Month-to-month",
+        "flat": {"setup": 1200.0, "monthly": 197.0},
+        "revshare": {"setup": 500.0, "monthly": 0.0, "pct": 12, "min": 75.0},
+        "includes": ["1 branded storefront (WooCommerce + Flatsome)", "Up to 2 drop windows / month",
+                     "Team Store Wizard — 5 AI strategy docs/mo", "Countdown timer + email capture templates",
+                     "Guest checkout & standard payments", "Email support (48-hr)", "Hosting, security & uptime monitoring"],
+        "not_included": ["Gang Sheet Builder", "Configurator", "Custom automation", "Fundraising-split reporting"],
     },
     "operator": {
-        "name": "Operator", "setup": 6500.0, "monthly": 349.0,
-        "blurb": "The full ecosystem — AI, automation, and multi-store scale.",
-        "includes": ["Everything in Growth", "AI mockups & copy tools", "Workflow automations", "Multi-store architecture", "Priority support"],
+        "name": "Operator", "popular": True, "custom": False, "from": False,
+        "best_for": "Schools, booster clubs & growing brands running recurring drops.",
+        "contract": "6-month minimum",
+        "flat": {"setup": 2800.0, "monthly": 597.0},
+        "revshare": {"setup": 1500.0, "monthly": 297.0, "pct": 7, "min": 200.0},
+        "includes": ["Everything in Ignition", "Unlimited drop windows", "Team Store Wizard — unlimited AI",
+                     "Gang Sheet Builder (Professional)", "Automation workflows (n8n)",
+                     "Fundraising split reporting dashboard", "Access-code private team stores",
+                     "Priority support (24-hr) + monthly report", "Quarterly strategy call"],
+        "not_included": ["Product Configurator", "Multi-site / multi-tenant", "Custom feature development"],
+    },
+    "command": {
+        "name": "Command", "popular": False, "custom": True, "from": True,
+        "best_for": "Districts, agencies & multi-site operators.",
+        "contract": "12-month minimum",
+        "flat": {"setup": 5500.0, "monthly": 1497.0},
+        "revshare": {"setup": 3500.0, "monthly": 897.0, "pct": 4, "min": 500.0},
+        "includes": ["Everything in Operator", "Up to 3 storefronts (multi-tenant)", "Product Configurator",
+                     "Custom AI workflow builds", "Advanced analytics dashboard", "Dedicated account manager",
+                     "White-label option", "Monthly strategy session + same-day support"],
+        "not_included": [],
     },
 }
 ADDONS = {
-    "extra_store": {"label": "Additional Store", "setup": 500.0, "monthly": 49.0},
-    "ai_tools": {"label": "AI Tools (mockups, copy, agent)", "setup": 1200.0, "monthly": 79.0},
-    "automations": {"label": "Automations (n8n / Zapier)", "setup": 900.0, "monthly": 59.0},
-    "gang_sheet": {"label": "Gang Sheet Builder", "setup": 800.0, "monthly": 39.0},
-    "fundraiser": {"label": "Fundraiser Module", "setup": 400.0, "monthly": 29.0},
-    "priority_support": {"label": "Priority Support", "setup": 0.0, "monthly": 99.0},
+    "extra_site": {"label": "Additional storefront / site", "setup": 0.0, "monthly": 200.0, "quote": False, "note": "per site"},
+    "rush_drop": {"label": "Rush drop turnaround (<5 days)", "setup": 250.0, "monthly": 0.0, "quote": False, "note": "flat per drop"},
+    "ai_credits": {"label": "Extra AI credits (+10 docs)", "setup": 0.0, "monthly": 49.0, "quote": False, "note": "Ignition"},
+    "consulting": {"label": "Strategic consulting session", "setup": 350.0, "monthly": 0.0, "quote": False, "note": "per session"},
+    "custom_dev": {"label": "Custom feature development", "setup": 0.0, "monthly": 0.0, "quote": True, "note": "quoted per project"},
+    "reseller_license": {"label": "Gang Sheet reseller license (white-label)", "setup": 0.0, "monthly": 0.0, "quote": True, "note": "agency pricing"},
 }
 
 
-def _price_selection(tier: str, addons: List[str]):
+def _price_selection(tier: str, addons: List[str], mode: str = "flat"):
     if tier not in TIERS:
         raise HTTPException(status_code=400, detail="Invalid tier")
-    t = TIERS[tier]
-    setup = t["setup"]
-    monthly = t["monthly"]
+    if mode not in ("flat", "revshare"):
+        mode = "flat"
+    base = TIERS[tier][mode]
+    setup = base["setup"]
+    monthly = base["monthly"]
     valid_addons = []
+    has_quote_addon = False
     for a in addons or []:
         if a in ADDONS:
-            setup += ADDONS[a]["setup"]
-            monthly += ADDONS[a]["monthly"]
+            ad = ADDONS[a]
+            if ad.get("quote"):
+                has_quote_addon = True
+            else:
+                setup += ad["setup"]
+                monthly += ad["monthly"]
             valid_addons.append(a)
-    return round(setup, 2), round(monthly, 2), valid_addons
+    # Command (custom scope) or any quote-only add-on cannot be bought online — quote only.
+    buyable = (not TIERS[tier]["custom"]) and (not has_quote_addon)
+    revshare = TIERS[tier]["revshare"] if mode == "revshare" else None
+    return round(setup, 2), round(monthly, 2), valid_addons, buyable, revshare
 
 
 @api_router.get("/packages")
@@ -409,16 +437,20 @@ class QuoteRequest(BaseModel):
     org: Optional[str] = ""
     tier: str
     addons: List[str] = []
+    mode: str = "flat"
     question: Optional[str] = ""
 
 
 @api_router.post("/packages/quote")
 async def package_quote(req: QuoteRequest):
-    setup, monthly, addons = _price_selection(req.tier, req.addons)
+    setup, monthly, addons, buyable, revshare = _price_selection(req.tier, req.addons, req.mode)
     data = {
         "name": req.name, "email": req.email, "org": req.org,
-        "tier": TIERS[req.tier]["name"], "addons": [ADDONS[a]["label"] for a in addons],
-        "setup_total": setup, "monthly_total": monthly, "question": req.question,
+        "tier": TIERS[req.tier]["name"], "mode": req.mode,
+        "addons": [ADDONS[a]["label"] for a in addons],
+        "setup_total": setup, "monthly_total": monthly,
+        "revshare": f"{revshare['pct']}% (min ${revshare['min']:.0f}/mo)" if revshare else None,
+        "question": req.question,
     }
     sub_id = await _save_submission("package_quote", data)
     asyncio.create_task(_notify_lead("package_quote", data))
@@ -444,6 +476,7 @@ async def _paypal_token():
 class PaypalOrderRequest(BaseModel):
     tier: str
     addons: List[str] = []
+    mode: str = "flat"
     email: Optional[EmailStr] = None
 
 
@@ -451,8 +484,10 @@ class PaypalOrderRequest(BaseModel):
 async def paypal_create_order(req: PaypalOrderRequest):
     if not PAYPAL_CLIENT_ID or not PAYPAL_SECRET:
         raise HTTPException(status_code=503, detail="PayPal not configured")
+    setup, monthly, addons, buyable, revshare = _price_selection(req.tier, req.addons, req.mode)
+    if not buyable:
+        raise HTTPException(status_code=400, detail="This configuration is quote-only. Please request a quote.")
     import httpx
-    setup, monthly, addons = _price_selection(req.tier, req.addons)
     token = await _paypal_token()
     async with httpx.AsyncClient() as c:
         r = await c.post(f"{PAYPAL_BASE}/v2/checkout/orders",
@@ -469,7 +504,7 @@ async def paypal_create_order(req: PaypalOrderRequest):
         order = r.json()
     await db.payment_transactions.insert_one({
         "provider": "paypal", "order_id": order["id"], "amount": setup, "currency": "usd",
-        "tier": req.tier, "addons": addons, "monthly_total": monthly, "email": req.email or "",
+        "tier": req.tier, "mode": req.mode, "addons": addons, "monthly_total": monthly, "email": req.email or "",
         "payment_status": "created", "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"order_id": order["id"]}
