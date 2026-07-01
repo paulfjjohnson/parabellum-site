@@ -16,7 +16,11 @@ export default function Tools() {
         eyebrow="The Toolbench"
         title="Interactive tooling, live."
         sub="The tools behind the ecosystem — strategy, production, and configuration systems you can try right now. Each is white-label ready for licensed deployments."
-      />
+      >
+        <a href="https://teeshirtali.com" target="_blank" rel="noopener noreferrer" className="pb-btn pb-btn-ghost" data-testid="tools-live-link">
+          See these tools live on Tee Shirt Ali <ArrowUpRight size={14} />
+        </a>
+      </PageHero>
       <section className="pb-sec-charcoal" style={{ paddingTop: 20, paddingBottom: 100 }}>
         <div className="pb-container grid md:grid-cols-3 gap-8">
           {TOOLS.map((t, i) => (

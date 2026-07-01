@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { PageHero, CTASection } from "@/components/Sections";
 
@@ -59,7 +59,7 @@ export default function Configurator() {
       <PageHero eyebrow="Product Configurator · Demo" title="Design it live. Price it instantly." sub="A real-time apparel configurator — color, placement, text, method, and quantity, priced on the fly. White-label ready for any storefront.">
         <div className="flex flex-wrap gap-4">
           <Link to="/request-a-launch" className="pb-btn pb-btn-gold">Add to my store <ArrowRight size={13} /></Link>
-          <Link to="/tools" className="pb-btn pb-btn-ghost">All tools</Link>
+          <a href="https://teeshirtali.com/configurator/" target="_blank" rel="noopener noreferrer" className="pb-btn pb-btn-ghost" data-testid="configurator-live-link">See it live <ArrowUpRight size={13} /></a>
         </div>
       </PageHero>
 

@@ -118,6 +118,7 @@ export const SERVICES = [
     slug: "custom-apparel-tech", num: "05", name: "Custom Apparel Tech",
     headline: "Built for apparel operators, not general stores.",
     tagline: "The infrastructure behind every great drop.",
+    liveUrl: "https://teeshirtali.com",
     stats: [["$0", "admin overhead (automated)"], ["7-day", "drop cycle"], ["100%", "operator-owned"]],
     deliverables: ["Group-buy windows", "Countdown timers", "Gang sheet tooling", "Product configurator", "Access gating", "Bulk fulfillment", "Fundraise splits", "Reorder flows"],
     process: ["Architect the drop", "Build the tooling", "Automate fulfillment", "Scale the program"],
@@ -138,6 +139,34 @@ export const SERVICES = [
     caseBody: "$3.2K/month savings, 90 days audit to production.",
     audience: [["Businesses", "Legacy stack cleanup"], ["Operators", "Scaling decisions"], ["Agencies", "Technical due diligence"]],
   },
+];
+
+export const EXTERNAL_DEMO = "https://teeshirtali.com";
+
+export const FEATURED_WORK = {
+  name: "Tee Shirt Ali",
+  url: "https://teeshirtali.com",
+  eyebrow: "Featured Work · Live in Production",
+  tagline: "One brand, every merch experience.",
+  desc: "Tee Shirt Ali is a full Parabellum-powered merch ecosystem live in production — school stores, team stores, an exclusive product configurator, a gang sheet builder, a design library, blank apparel catalogs, DTF printing, fundraiser programs, and Tee Party drops, all behind a customer portal.",
+  stats: [["10+", "Live tools & stores"], ["School-Store", "Architecture"], ["100%", "Operator-owned"]],
+  img: IMAGES.printThree,
+};
+
+// Mirrors the Tee Shirt Ali feature set — what the Parabellum ecosystem powers.
+export const POWERED_CAPABILITIES = [
+  { icon: "Store", label: "School Stores", desc: "Branded storefronts per school — spirit wear, team gear, and exclusive drops in one hub." },
+  { icon: "Users", label: "Team Stores", desc: "Group-buy stores for teams and clubs with scheduled order windows." },
+  { icon: "LibraryBig", label: "Design Library", desc: "A curated artwork library — choose a design, then build the garment." },
+  { icon: "Shirt", label: "Product Configurator", desc: "Pick design, blank, color, size, and quantity with live pricing." },
+  { icon: "Layers", label: "Blank Apparel", desc: "Premium blanks — Bella Canvas, Gildan, Next Level, Comfort Colors, headwear." },
+  { icon: "Grid2x2", label: "Gang Sheet Builder", desc: "Auto-packing DTF gang sheets with DPI validation and instant pricing." },
+  { icon: "Printer", label: "DTF Printing", desc: "Vivid, full-color DTF transfers built for durability and detail." },
+  { icon: "HeartHandshake", label: "Fundraiser Merch", desc: "Fundraising apparel programs with built-in revenue splits." },
+  { icon: "Sparkles", label: "Graphic Design", desc: "Custom artwork, logos, and campaign-ready design support." },
+  { icon: "Gift", label: "Promotional Products", desc: "Branded promo merchandise for events, teams, and businesses." },
+  { icon: "CalendarClock", label: "Event Merchandise", desc: "Limited-time collections and campaign launches for any event." },
+  { icon: "UserRound", label: "Customer Portal", desc: "Account login for reorders, order history, and store access." },
 ];
 
 export const NAV_LINKS = [

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Check, X, FileDown, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, X, FileDown, Image as ImageIcon } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { PageHero, CTASection } from "@/components/Sections";
 
@@ -167,7 +167,7 @@ export default function GangSheetBuilder() {
       <PageHero eyebrow="Gang Sheet Builder · Demo" title="Every inch of the sheet, engineered." sub="An auto-packing DTF gang sheet builder with DPI validation, live layout, and production-ready export. This is the interface — the shipping tool packs real files.">
         <div className="flex flex-wrap gap-4">
           <Link to="/request-a-launch" className="pb-btn pb-btn-gold">Get early access <ArrowRight size={13} /></Link>
-          <Link to="/tools" className="pb-btn pb-btn-ghost">All tools</Link>
+          <a href="https://teeshirtali.com/gang-sheet-builder/" target="_blank" rel="noopener noreferrer" className="pb-btn pb-btn-ghost" data-testid="gangsheet-live-link">See it live <ArrowUpRight size={13} /></a>
         </div>
       </PageHero>
 

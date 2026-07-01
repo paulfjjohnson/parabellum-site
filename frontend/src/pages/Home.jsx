@@ -5,6 +5,7 @@ import { Reveal, Eyebrow } from "@/components/Reveal";
 import { Crest } from "@/components/Crest";
 import { Ticker } from "@/components/Ticker";
 import { CTASection } from "@/components/Sections";
+import { FeaturedWork, PoweredCapabilities } from "@/components/FeaturedWork";
 import { PILLARS, AUDIENCES, LAUNCH_SEQUENCE, DROPS } from "@/data/site";
 
 const ICONS = { Rocket, Layers, Cpu };
@@ -218,6 +219,8 @@ export default function Home() {
       <RevenueEngine />
       <AudienceTabs />
       <LaunchSequence />
+      <FeaturedWork />
+      <PoweredCapabilities />
       <CTASection />
       <FieldNotes />
       <EmailCapture />

@@ -1,5 +1,5 @@
 import { useParams, Link, Navigate } from "react-router-dom";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { PageHero, StatRow, Chips, CTASection } from "@/components/Sections";
 import { SERVICES } from "@/data/site";
@@ -14,6 +14,7 @@ export default function ServiceDetail() {
       <PageHero eyebrow={`Service ${s.num} · ${s.name}`} title={s.headline} sub={s.tagline}>
         <div className="flex flex-wrap gap-4">
           <Link to="/request-a-launch" className="pb-btn pb-btn-gold">Start this build <ArrowRight size={13} /></Link>
+          {s.liveUrl && <a href={s.liveUrl} target="_blank" rel="noopener noreferrer" className="pb-btn pb-btn-ghost" data-testid="service-live-link">See it live <ArrowUpRight size={13} /></a>}
           <Link to="/services" className="pb-btn pb-btn-ghost">All services</Link>
         </div>
       </PageHero>
