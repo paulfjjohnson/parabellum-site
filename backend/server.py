@@ -145,7 +145,8 @@ class LoginRequest(BaseModel):
 @api_router.post("/auth/login")
 async def login(req: LoginRequest, request: Request):
     email = req.email.lower().strip()
-    ip = request.client.host if request.client else "unknown"
+    xff = request.headers.get("x-forwarded-for", "")
+    ip = xff.split(",")[0].strip() if xff else (request.client.host if request.client else "unknown")
     identifier = f"{ip}:{email}"
 
     attempt = await db.login_attempts.find_one({"identifier": identifier})

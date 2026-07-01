@@ -23,6 +23,11 @@ Rebuild the theparabellumco.com merch-tech marketing site (originally spec'd for
 - **Deployment docs**: `/app/DEPLOYMENT.md`, `backend/.env.example`, `frontend/.env.example` for porting to user's own React+FastAPI+MongoDB host.
 
 ## Backlog / Next
-- P1: Persist Contact / Request-a-Launch submissions to MongoDB + admin view
 - P2: Real gang-sheet file upload w/ DPI detection + PDF export (jsPDF)
 - P2: WooCommerce-style shop for Digital Products & Drops
+- P2: Email notification to admin on new lead (Resend/SendGrid)
+
+## Auth & Leads (July 2026) — DONE
+- JWT (Bearer) admin auth, single seeded admin (paul@theparabellumco.com). Login /admin/login → dashboard /admin.
+- Contact + Request-a-Launch persist to Mongo `submissions`; protected GET /api/admin/submissions lists them.
+- Brute-force lockout (5/15min) keyed on X-Forwarded-For client IP. Verified 12/12 backend + full frontend flow.
