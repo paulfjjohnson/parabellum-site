@@ -124,3 +124,26 @@ curl -X POST https://yourdomain.com/api/wizard/strategy \
 
 If the wizard returns 502, check that `ANTHROPIC_API_KEY` is set and the backend
 process was restarted after editing `.env`.
+
+---
+
+## 7. Lead notification emails (SMTP)
+
+Contact and Request-a-Launch submissions always save to MongoDB (visible in `/admin`).
+To also get an email on each new lead, set your host's SMTP vars in `backend/.env`:
+
+```
+LEAD_NOTIFY_EMAIL="paul@theparabellumco.com"   # where alerts are sent
+SMTP_HOST="smtp.yourhost.com"                   # from your hosting provider
+SMTP_PORT="587"
+SMTP_USER="no-reply@theparabellumco.com"        # a mailbox on your domain
+SMTP_PASSWORD="your-mailbox-password"
+SMTP_FROM="no-reply@theparabellumco.com"
+SMTP_STARTTLS="true"                            # use "false" if your host uses port 465/SSL
+```
+
+- Get these SMTP details from your hosting provider's "Email Accounts" section
+  (create a mailbox like `no-reply@theparabellumco.com` and use its credentials).
+- If `SMTP_HOST` is left unset, submissions still save; the email step is simply skipped.
+- Restart the backend after editing `.env`.
+

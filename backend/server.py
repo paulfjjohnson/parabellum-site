@@ -12,6 +12,9 @@ import json
 import re
 import bcrypt
 import jwt
+import asyncio
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
 
 # Optional Emergent library (only present on the Emergent platform).
@@ -36,6 +39,15 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'dev-secret-change-me')
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+# Email (SMTP) config — set these on your host to enable lead notifications.
+SMTP_HOST = os.environ.get('SMTP_HOST')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER or 'no-reply@theparabellumco.com')
+SMTP_STARTTLS = os.environ.get('SMTP_STARTTLS', 'true').lower() == 'true'
+LEAD_NOTIFY_EMAIL = os.environ.get('LEAD_NOTIFY_EMAIL', 'paul@theparabellumco.com')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -206,15 +218,55 @@ async def _save_submission(kind: str, data: dict) -> str:
     return sub_id
 
 
+def _send_email_sync(subject: str, body: str):
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = SMTP_FROM
+    msg["To"] = LEAD_NOTIFY_EMAIL
+    msg.set_content(body)
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        if SMTP_STARTTLS:
+            server.starttls()
+        if SMTP_USER and SMTP_PASSWORD:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+
+
+async def _notify_lead(kind: str, data: dict):
+    """Fire-and-forget lead notification. No-ops (logs) if SMTP is not configured."""
+    if not SMTP_HOST:
+        logger.info(f"[lead:{kind}] SMTP not configured — skipping email. From {data.get('email')}")
+        return
+    label = "Launch Request" if kind == "launch" else "Contact"
+    lines = [f"New {label} from the Parabellum site.", ""]
+    for k, v in data.items():
+        if v in (None, "", []):
+            continue
+        val = ", ".join(v) if isinstance(v, list) else str(v)
+        lines.append(f"{k}: {val}")
+    lines += ["", "— View all leads in the admin dashboard: /admin"]
+    body = "\n".join(lines)
+    subject = f"[Parabellum] New {label}: {data.get('name') or data.get('email') or 'Unknown'}"
+    try:
+        await asyncio.to_thread(_send_email_sync, subject, body)
+        logger.info(f"[lead:{kind}] notification email sent to {LEAD_NOTIFY_EMAIL}")
+    except Exception as e:
+        logger.error(f"[lead:{kind}] email send failed: {e}")
+
+
 @api_router.post("/contact")
 async def submit_contact(req: ContactSubmission):
-    sub_id = await _save_submission("contact", req.model_dump())
+    data = req.model_dump()
+    sub_id = await _save_submission("contact", data)
+    asyncio.create_task(_notify_lead("contact", data))
     return {"ok": True, "id": sub_id}
 
 
 @api_router.post("/launch")
 async def submit_launch(req: LaunchSubmission):
-    sub_id = await _save_submission("launch", req.model_dump())
+    data = req.model_dump()
+    sub_id = await _save_submission("launch", data)
+    asyncio.create_task(_notify_lead("launch", data))
     return {"ok": True, "id": sub_id}
 
 

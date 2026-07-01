@@ -27,6 +27,10 @@ Rebuild the theparabellumco.com merch-tech marketing site (originally spec'd for
 - **Powered Capabilities** grid on Home mirroring Tee Shirt Ali's full feature set (School Stores, Team Stores, Design Library, Configurator, Blank Apparel, Gang Sheet Builder, DTF Printing, Fundraiser Merch, Graphic Design, Promotional Products, Event Merchandise, Customer Portal) + "See it live on Tee Shirt Ali" link.
 - **"See it live" outbound links** added to: Tools hub, Configurator (→ /configurator/), Gang Sheet Builder (→ /gang-sheet-builder/), and the Custom Apparel Tech service page.
 
+## Real Assets + Lead Emails (July 2026) — DONE
+- Featured Work now uses the real Tee Shirt Ali homepage screenshot in a browser-framed preview (hover-scroll reveal) + the actual Tee Shirt Ali logo badge.
+- Lead notification emails via host SMTP: `/api/contact` and `/api/launch` fire a non-blocking email to LEAD_NOTIFY_EMAIL (paul@theparabellumco.com). Fully env-driven (SMTP_HOST/PORT/USER/PASSWORD/FROM/STARTTLS); safely skips + logs when SMTP unset (as on Emergent). Docs in DEPLOYMENT.md §7 + backend/.env.example.
+
 ## Backlog / Next
 - P2: Real gang-sheet file upload w/ DPI detection + PDF export (jsPDF)
 - P2: WooCommerce-style shop for Digital Products & Drops
