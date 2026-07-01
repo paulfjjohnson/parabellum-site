@@ -1,0 +1,30 @@
+{
+  "summary": "Package Builder feature tested end-to-end. Backend: 12/12 pytest cases pass — GET /api/packages returns correct catalog (3 tiers, 6 addons, paypal_enabled=false, paypal_client_id=''); POST /api/packages/quote computes correct server-side totals (operator+automations=7400/408, growth+ai_tools+gang_sheet=5500/317, starter alone=1500/99, invalid addons silently ignored, invalid tier→400, missing fields→422); POST /api/packages/paypal/order and /capture both return 503 gracefully with 'PayPal not configured'; POST /api/packages/quote submissions land in /api/admin/submissions with type='package_quote' and full data payload (tier name, addons labels, setup_total, monthly_total, question). Frontend: 9/9 UI checks pass — /pricing loads, live setup/monthly totals update correctly for every tier + addon combo (matches server math), open-buy shows the paypal-disabled fallback notice (no PayPal iframe rendered), open-quote form submits and shows 'Quote request sent' success confirmation, /tools/package-builder alt route also loads the builder, navbar renders cleanly with all 6 links + Request a Launch CTA, no overlap. HOWEVER — the Admin lead inbox has a UI display bug for package_quote submissions (see frontend_issues).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin.jsx (SubmissionCard)", "issue": "package_quote submissions are visible in /admin BUT (a) render with a 'CONTACT' badge and (b) DO NOT show tier / add-ons / setup_total / monthly_total / question fields. Only name/email/org are shown. Review-request explicitly requires: 'Admin dashboard shows the package_quote submissions in the lead inbox with tier, add-ons, totals, and the question.' Root cause: SubmissionCard has only two branches (isLaunch → 'Launch Request', else → 'Contact'); no case for s.type === 'package_quote'.", "selector": "SubmissionCard in /app/frontend/src/pages/Admin.jsx (lines 18-46)", "priority": "HIGH"},
+      {"component": "Admin.jsx (filter tabs)", "issue": "Filter tabs only include All / Launch Requests / Contact — no 'Package Quotes' filter. On the live dashboard the All count is 17 but Launch (4) + Contact (5) = 9, so 8 package_quote entries are only reachable via the All tab and are mis-classified as CONTACT in the badge.", "selector": "counts + filter buttons in /app/frontend/src/pages/Admin.jsx (lines 68-88)", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_package_builder.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Update Admin.jsx SubmissionCard: add a branch for s.type === 'package_quote' that renders a 'Package Quote' badge and displays d.tier, d.addons (chips), d.setup_total, d.monthly_total, d.question.",
+    "Add a 'Package Quotes' filter tab in Admin.jsx counts + filter buttons so package_quote submissions have their own count and can be isolated (counts.package_quote = subs.filter(s => s.type === 'package_quote').length)."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx SubmissionCard treats any non-'launch' type as 'contact'. Should switch on s.type with an explicit map. Extensible pattern: const LABELS = {launch:'Launch Request', contact:'Contact', package_quote:'Package Quote', package_order:'Package Order'}.",
+    "server.py — package_quote and package_order both flow through /api/admin/submissions but only 2 of 4 types have a UI renderer. When PayPal is eventually enabled, package_order submissions will silently mis-render for the same reason.",
+    "server.py get_packages returns TIERS/ADDONS dicts directly with numeric setup/monthly as float. Contract works but consider adding a Pydantic response model for future stability (currently untyped)."
+  ],
+  "updated_files": ["/app/backend/tests/test_package_builder.py"],
+  "success_rate": {"backend": "100% (12/12 tests pass)", "frontend": "89% (9/9 Package Builder UI flows pass; admin inbox package_quote display is broken)"},
+  "test_credentials": "Admin: paul@theparabellumco.com / Parabellum@142420 (token in localStorage key pb_admin_token). PayPal intentionally unconfigured — the 503 fallback is expected and verified.",
+  "seed_data_creation": "Created several package_quote submissions via tests and via UI: TEST_QuoteOp/Op/Starter/AdminVisibility/ignore + UI_TestUser Package (ui_pkg_test@example.com). All persist to db.submissions with type='package_quote' and are visible via /api/admin/submissions.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend + Package Builder page are production-ready. Only remaining work is the Admin.jsx UI bug — package_quote submissions land in the inbox but don't display tier/addons/totals/question and are labeled 'CONTACT'. Once fixed, re-run /app/backend/tests/test_package_builder.py to confirm no regression and manually spot-check /admin to confirm the new fields render. Seeded data (see seed_data_creation) can be used to verify the fix without creating new quotes.",
+  "rca of the issue": "In /app/frontend/src/pages/Admin.jsx, SubmissionCard branches only on isLaunch (s.type === 'launch'); any other type falls into an implicit 'Contact' default. Server correctly saves submissions with type='package_quote' and full data payload (tier, addons, setup_total, monthly_total, question) — verified via /api/admin/submissions returning the entries with all fields intact. The gap is purely in the client-side renderer. Fix: extend SubmissionCard with an if (s.type === 'package_quote') branch that reads d.tier, d.addons, d.setup_total, d.monthly_total, d.question and renders them, plus add 'package_quote' to the filter buttons + counts. Also consider handling type='package_order' pre-emptively since /api/packages/paypal/capture writes those and PayPal will eventually be enabled."
+}

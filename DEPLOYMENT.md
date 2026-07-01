@@ -147,3 +147,34 @@ SMTP_STARTTLS="true"                            # use "false" if your host uses 
 - If `SMTP_HOST` is left unset, submissions still save; the email step is simply skipped.
 - Restart the backend after editing `.env`.
 
+---
+
+## 8. PayPal checkout (Package Builder)
+
+The `/pricing` Package Builder lets prospects configure a tier + add-ons, see live
+setup + monthly pricing, and either **Buy Now** (pay the setup fee via PayPal) or
+**Request a Quote**. Pricing is computed **server-side** (see `TIERS`/`ADDONS` in
+`server.py`) — the frontend never sends amounts.
+
+To enable Buy Now, set in `backend/.env`:
+
+```
+PAYPAL_CLIENT_ID="<your live client id>"
+PAYPAL_SECRET="<your live secret>"
+PAYPAL_BASE="https://api-m.paypal.com"        # sandbox: https://api-m.sandbox.paypal.com
+```
+
+- Get credentials at https://developer.paypal.com → Apps & Credentials → create a
+  **Live** app. Client ID is public (used by the frontend button); the Secret stays server-side.
+- The frontend reads the Client ID from `GET /api/packages` (no rebuild needed) — just
+  set the env vars and restart the backend.
+- With keys unset, the Buy button gracefully offers "request a quote / we'll send a PayPal invoice."
+- Paid setup fees are recorded in the `payment_transactions` collection and also logged as a
+  `package_order` lead (visible in `/admin`) with an email notification.
+
+### Editing prices / tiers
+All tier and add-on pricing lives in one place — the `TIERS` and `ADDONS` dicts near the
+top of the package section in `server.py`. Edit there and restart; the frontend updates
+automatically via `/api/packages`.
+
+
