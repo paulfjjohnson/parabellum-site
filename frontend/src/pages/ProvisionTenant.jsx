@@ -35,15 +35,14 @@ const STEPS = [
     { k: "slug", label: "Slug", type: "slug", ph: "auto from name" },
     { k: "tier", label: "Tier (entitlements)", type: "select", opts: TIERS },
   ]},
-  { title: "First-Store Branding", hint: "Branding for the first store. Logo upload happens later in WP → Platform → Branding.", fields: [
-    { k: "mascot", label: "Mascot", type: "text", ph: "e.g. Wildcats" },
+  { title: "Brand", hint: "How the cloned site looks. Logo upload happens in WP → Platform → Branding — drop the file link here.", fields: [
+    { k: "logo_note", label: "Logo (URL or where files live)", type: "text", ph: "https://… or Drive link" },
     { k: "primary_color", label: "Primary Color", type: "color", ph: "#123456" },
     { k: "secondary_color", label: "Secondary Color", type: "color", ph: "#cccccc" },
     { k: "tagline", label: "Tagline", type: "text", ph: "Custom apparel for …" },
-    { k: "spotlight", label: "Spotlight", type: "text", ph: "Featured drop / message" },
-    { k: "store_status", label: "Store Status", type: "text", ph: "e.g. Open / Launching soon" },
+    { k: "white_label_credit", label: "White-label Credit", type: "select", opts: ["Show credit", "Hide (white-label)"] },
   ]},
-  { title: "Business Profile", hint: "Feeds the Contact page, footer, and policy pages.", fields: [
+  { title: "Business Profile", hint: "Feeds the Contact page, footer, and policy pages (State sets governing law in Terms).", fields: [
     { k: "legal_name", label: "Legal Name", type: "text", ph: "New Co LLC" },
     { k: "email", label: "Owner Email", type: "text", ph: "owner@newco.com" },
     { k: "phone", label: "Phone", type: "text", ph: "(555) 123-4567" },
@@ -52,13 +51,11 @@ const STEPS = [
     { k: "service_area", label: "Service Area", type: "text", ph: "Serving Central Texas & nationwide" },
     { k: "hours", label: "Hours", type: "text", ph: "Mon–Fri 9–5" },
   ]},
-  { title: "Socials & Branding", hint: "Only the socials you set appear in the footer.", fields: [
+  { title: "Web & Socials", hint: "The domain sets the WordPress address and appears in policies. Only the socials you set show in the footer.", fields: [
+    { k: "website", label: "Domain", type: "text", ph: "newco.com" },
     { k: "instagram", label: "Instagram URL", type: "text", ph: "https://instagram.com/newco" },
     { k: "facebook", label: "Facebook URL", type: "text", ph: "https://facebook.com/newco" },
     { k: "tiktok", label: "TikTok URL", type: "text", ph: "https://tiktok.com/@newco" },
-    { k: "website", label: "Website / Domain", type: "text", ph: "https://newco.com" },
-    { k: "white_label_credit", label: "White-label Credit", type: "text", ph: "Powered by Parabellum" },
-    { k: "logo_note", label: "Logo Note", type: "textarea", ph: "Where the logo files are / what's needed" },
     { k: "notes", label: "Internal Notes", type: "textarea", ph: "Anything else for this build…" },
   ]},
 ];
@@ -153,7 +150,7 @@ export default function ProvisionTenant() {
 
   // wizard state
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({ tier: "Starter" });
+  const [answers, setAnswers] = useState({ tier: "Starter", white_label_credit: "Show credit" });
   const [slugEdited, setSlugEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -190,7 +187,7 @@ export default function ProvisionTenant() {
     } catch { load(); }
   };
 
-  const resetWizard = () => { setStep(0); setAnswers({ tier: "Starter" }); setSlugEdited(false); setError(""); };
+  const resetWizard = () => { setStep(0); setAnswers({ tier: "Starter", white_label_credit: "Show credit" }); setSlugEdited(false); setError(""); };
 
   const submit = async () => {
     setSaving(true); setError("");
