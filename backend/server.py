@@ -537,6 +537,154 @@ async def paypal_capture_order(order_id: str):
         asyncio.create_task(_notify_lead("package_order", data))
     return {"status": status}
 
+# ==================== TENANT PROVISIONING (Phase 1 cockpit) ====================
+# Intake + record-keeping + `wp tsa setup` command generation for standing up a
+# new print-shop tenant. Mirrors docs/70-packaging-a-new-customer.md. The admin
+# is the cockpit here — it captures the answers and generates the command; the
+# actual clone still runs on the WordPress side (Phase 2 automates firing it).
+
+STORE_TYPES = ["School", "Team", "Business"]
+PROVISION_TIERS = ["Starter", "Pro", "Studio"]
+TENANT_STATUSES = ["draft", "provisioning", "live", "failed"]
+
+# Post-launch checklist (mirrors docs/70-packaging-a-new-customer.md §4)
+CHECKLIST_STEPS = [
+    "setup_ran",      # wp tsa setup executed (seed + provision + business profile)
+    "branding",       # logo + colors applied (Platform → Branding)
+    "domain",         # customer domain pointed + SSL
+    "email_smtp",     # SMTP / deliverability configured
+    "form_routing",   # TSA Form Emails routing set
+    "woocommerce",    # payment gateway, tax, shipping, store address
+    "verified",       # pages verified (Home, Quote, Configurator, Contact, footer)
+    "cache_purged",   # LiteSpeed Cache → Purge All
+]
+
+
+class TenantCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    # Identity
+    name: str
+    slug: Optional[str] = ""
+    store_type: str = "School"
+    tier: str = "Starter"
+    # First-store branding
+    mascot: Optional[str] = ""
+    primary_color: Optional[str] = ""
+    secondary_color: Optional[str] = ""
+    tagline: Optional[str] = ""
+    spotlight: Optional[str] = ""
+    store_status: Optional[str] = ""
+    # Business profile
+    legal_name: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    city: Optional[str] = ""
+    state: Optional[str] = ""
+    service_area: Optional[str] = ""
+    hours: Optional[str] = ""
+    # Socials + branding extras
+    instagram: Optional[str] = ""
+    facebook: Optional[str] = ""
+    tiktok: Optional[str] = ""
+    website: Optional[str] = ""
+    logo_note: Optional[str] = ""
+    white_label_credit: Optional[str] = ""
+    notes: Optional[str] = ""
+
+
+class TenantUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    status: Optional[str] = None
+    checklist: Optional[Dict[str, bool]] = None
+    notes: Optional[str] = None
+
+
+def _slugify(value: str) -> str:
+    value = (value or "").strip().lower()
+    return re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+
+
+def _sh_quote(value: Any) -> str:
+    """Double-quote a value for a copy-paste-safe shell command."""
+    v = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{v}"'
+
+
+def build_tsa_command(t: dict) -> str:
+    """Build the `wp tsa setup` command from a tenant record.
+    Only includes flags that have a value. See docs/70-packaging-a-new-customer.md."""
+    flags = []
+
+    def add(flag: str, value: Any):
+        if value not in (None, "", []):
+            flags.append(f"--{flag}={_sh_quote(value)}")
+
+    add("name", t.get("name"))
+    add("slug", t.get("slug"))
+    add("type", (t.get("store_type") or "").lower())
+    add("tier", (t.get("tier") or "").lower())
+    add("primary", t.get("primary_color"))
+    add("secondary", t.get("secondary_color"))
+    add("email", t.get("email"))
+    add("tagline", t.get("tagline"))
+    add("phone", t.get("phone"))
+    add("city", t.get("city"))
+    add("state", t.get("state"))
+    add("service-area", t.get("service_area"))
+    add("hours", t.get("hours"))
+    add("instagram", t.get("instagram"))
+    return "wp tsa setup \\\n  " + " \\\n  ".join(flags)
+
+
+@api_router.post("/admin/tenants")
+async def create_tenant(req: TenantCreate, current=Depends(get_current_user)):
+    data = req.model_dump()
+    data["slug"] = _slugify(data.get("slug") or data.get("name"))
+    if not data["slug"]:
+        raise HTTPException(status_code=400, detail="A business name or slug is required.")
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        **data,
+        "id": str(uuid.uuid4()),
+        "status": "draft",
+        "checklist": {k: False for k in CHECKLIST_STEPS},
+        "created_at": now,
+        "updated_at": now,
+    }
+    doc["command"] = build_tsa_command(doc)
+    await db.tenants.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/admin/tenants")
+async def list_tenants(current=Depends(get_current_user)):
+    docs = await db.tenants.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"tenants": docs}
+
+
+@api_router.get("/admin/tenants/{tenant_id}")
+async def get_tenant(tenant_id: str, current=Depends(get_current_user)):
+    doc = await db.tenants.find_one({"id": tenant_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return doc
+
+
+@api_router.patch("/admin/tenants/{tenant_id}")
+async def update_tenant(tenant_id: str, req: TenantUpdate, current=Depends(get_current_user)):
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    if "status" in updates and updates["status"] not in TENANT_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status.")
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update.")
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.tenants.update_one({"id": tenant_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return await db.tenants.find_one({"id": tenant_id}, {"_id": 0})
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -555,6 +703,7 @@ async def startup_seed():
         await db.users.create_index("email", unique=True)
         await db.login_attempts.create_index("identifier")
         await db.submissions.create_index("created_at")
+        await db.tenants.create_index("created_at")
     except Exception as e:
         logger.warning(f"index creation: {e}")
     # Seed / update admin

@@ -21,6 +21,7 @@ import Drops from "@/pages/Drops";
 import Legal from "@/pages/Legal";
 import AdminLogin from "@/pages/AdminLogin";
 import Admin from "@/pages/Admin";
+import ProvisionTenant from "@/pages/ProvisionTenant";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -56,6 +57,7 @@ const Shell = () => {
           <Route path="/legal/:doc" element={<Legal />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/provision" element={<ProvisionTenant />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
