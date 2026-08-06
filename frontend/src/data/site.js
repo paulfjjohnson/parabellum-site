@@ -151,7 +151,7 @@ export const FEATURED_WORK = {
   desc: "Tee Shirt Ali is a full Parabellum-powered merch ecosystem live in production — school stores, team stores, an exclusive product configurator, a gang sheet builder, a design library, blank apparel catalogs, DTF printing, fundraiser programs, and Tee Party drops, all behind a customer portal.",
   stats: [["10+", "Live tools & stores"], ["School-Store", "Architecture"], ["100%", "Operator-owned"]],
   img: "/featured-teeshirtali.png",
-  logo: "https://customer-assets.emergentagent.com/job_tech-stack-audit-1/artifacts/01iy2pg4_Tee%20Shirt%20Ali%20Logo%20%282%29.png",
+  logo: "/teeshirtali-logo.png",
 };
 
 // Mirrors the Tee Shirt Ali feature set — what the Parabellum ecosystem powers.
