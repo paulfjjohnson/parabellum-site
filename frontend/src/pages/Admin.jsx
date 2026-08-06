@@ -113,7 +113,7 @@ export default function Admin() {
             <p className="pb-body mt-3" style={{ fontSize: 15 }}>Signed in as {user.email}</p>
           </div>
           <div className="flex gap-3">
-            <Link to="/admin/provision" className="pb-btn pb-btn-gold" data-testid="admin-provision"><Store size={13} /> Provision a Store</Link>
+            <Link to="/admin/provision" className="pb-btn pb-btn-gold" data-testid="admin-provision"><Store size={13} /> Provision a Platform</Link>
             <button onClick={load} className="pb-btn pb-btn-ghost" data-testid="admin-refresh"><RefreshCw size={13} /> Refresh</button>
             <button onClick={logout} className="pb-btn pb-btn-ghost" data-testid="admin-logout"><LogOut size={13} /> Log Out</button>
           </div>

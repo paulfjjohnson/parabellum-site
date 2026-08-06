@@ -253,26 +253,26 @@ export default function ProvisionTenant() {
         <div className="flex flex-wrap items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-3 mb-4"><Crest size={34} /><span className="pb-mono" style={{ fontSize: 11, letterSpacing: "0.28em", textTransform: "uppercase" }}>Parabellum · Provisioning</span></div>
-            <Eyebrow>Tenant Cockpit</Eyebrow>
-            <h1 className="pb-h2 mt-5" style={{ fontSize: 48 }}>{view === "new" ? "New store." : "Stores."}</h1>
+            <Eyebrow>Platform Cockpit</Eyebrow>
+            <h1 className="pb-h2 mt-5" style={{ fontSize: 48 }}>{view === "new" ? "New platform." : "Platforms."}</h1>
           </div>
           <div className="flex gap-3">
             <Link to="/admin" className="pb-btn pb-btn-ghost"><ArrowLeft size={13} /> Admin</Link>
             {view === "board"
               ? <><button onClick={load} className="pb-btn pb-btn-ghost" data-testid="prov-refresh"><RefreshCw size={13} /> Refresh</button>
-                  <button onClick={() => { resetWizard(); setView("new"); }} className="pb-btn pb-btn-gold" data-testid="prov-new"><Plus size={13} /> New Store</button></>
+                  <button onClick={() => { resetWizard(); setView("new"); }} className="pb-btn pb-btn-gold" data-testid="prov-new"><Plus size={13} /> New Platform</button></>
               : <button onClick={() => setView("board")} className="pb-btn pb-btn-ghost" data-testid="prov-cancel">Cancel</button>}
           </div>
         </div>
 
         {view === "board" ? (
           loading ? (
-            <div className="flex items-center gap-3 mt-16 pb-body"><Loader2 size={18} className="animate-spin" color="var(--pb-gold)" /> Loading stores…</div>
+            <div className="flex items-center gap-3 mt-16 pb-body"><Loader2 size={18} className="animate-spin" color="var(--pb-gold)" /> Loading platforms…</div>
           ) : tenants.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center" style={{ padding: "80px 0" }} data-testid="prov-empty">
               <Store size={40} color="var(--pb-gray)" strokeWidth={1.2} />
-              <p className="pb-body mt-5" style={{ fontSize: 17 }}>No stores yet. Provision your first tenant.</p>
-              <button onClick={() => { resetWizard(); setView("new"); }} className="pb-btn pb-btn-gold mt-6" data-testid="prov-new-empty"><Plus size={13} /> New Store</button>
+              <p className="pb-body mt-5" style={{ fontSize: 17 }}>No platforms yet. Provision your first one.</p>
+              <button onClick={() => { resetWizard(); setView("new"); }} className="pb-btn pb-btn-gold mt-6" data-testid="prov-new-empty"><Plus size={13} /> New Platform</button>
             </div>
           ) : (
             <div className="grid gap-6 mt-10" data-testid="prov-list">
@@ -314,7 +314,7 @@ export default function ProvisionTenant() {
                 <button className="pb-btn pb-btn-gold" onClick={() => setStep((x) => x + 1)} disabled={step === 0 && !answers.name} style={{ opacity: step === 0 && !answers.name ? 0.5 : 1 }} data-testid="prov-next">Next <ArrowRight size={13} /></button>
               ) : (
                 <button className="pb-btn pb-btn-gold" onClick={submit} disabled={saving || !answers.name} style={{ opacity: saving || !answers.name ? 0.7 : 1 }} data-testid="prov-submit">
-                  {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : <>Create Store <ArrowRight size={13} /></>}
+                  {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : <>Create Platform <ArrowRight size={13} /></>}
                 </button>
               )}
             </div>
