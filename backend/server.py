@@ -588,6 +588,7 @@ class TenantCreate(BaseModel):
     tiktok: Optional[str] = ""
     website: Optional[str] = ""
     logo_note: Optional[str] = ""
+    logo_data: Optional[str] = ""  # data URL (base64) of the uploaded logo, downscaled client-side
     white_label_credit: Optional[str] = ""
     notes: Optional[str] = ""
 

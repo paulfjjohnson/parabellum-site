@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Navigate, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Plus, Copy, Check, RefreshCw, Loader2, Store, Terminal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Copy, Check, RefreshCw, Loader2, Store, Terminal, Upload, Download } from "lucide-react";
 import { Reveal, Eyebrow } from "@/components/Reveal";
 import { Crest } from "@/components/Crest";
 import { useAuth, authHeader, formatApiErrorDetail } from "@/context/AuthContext";
@@ -36,7 +36,7 @@ const STEPS = [
     { k: "tier", label: "Tier (entitlements)", type: "select", opts: TIERS },
   ]},
   { title: "Brand", hint: "How the cloned site looks. Logo upload happens in WP → Platform → Branding — drop the file link here.", fields: [
-    { k: "logo_note", label: "Logo (URL or where files live)", type: "text", ph: "https://… or Drive link" },
+    { k: "logo_data", label: "Logo", type: "logo" },
     { k: "primary_color", label: "Primary Color", type: "color", ph: "#123456" },
     { k: "secondary_color", label: "Secondary Color", type: "color", ph: "#cccccc" },
     { k: "tagline", label: "Tagline", type: "text", ph: "Custom apparel for …" },
@@ -62,6 +62,30 @@ const STEPS = [
 
 const slugify = (s) => (s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+// Read an uploaded image, downscale to <=480px (keeps PNG transparency), return a data URL.
+const readLogo = (file, cb) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 480;
+      let { width, height } = img;
+      if (width > max || height > max) {
+        const scale = Math.min(max / width, max / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const c = document.createElement("canvas");
+      c.width = width; c.height = height;
+      c.getContext("2d").drawImage(img, 0, 0, width, height);
+      try { cb(c.toDataURL("image/png")); } catch { cb(reader.result); }
+    };
+    img.onerror = () => cb(reader.result);
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+};
+
 const Field = ({ f, value, onChange }) => {
   if (f.type === "select") return (
     <select className="pb-input" value={value || ""} onChange={(e) => onChange(e.target.value)} data-testid={`prov-${f.k}`}>
@@ -74,6 +98,17 @@ const Field = ({ f, value, onChange }) => {
       <input type="color" value={/^#[0-9a-f]{6}$/i.test(value || "") ? value : "#c8a24a"} onChange={(e) => onChange(e.target.value)}
         style={{ width: 46, height: 40, background: "transparent", border: "1px solid var(--pb-border)", cursor: "pointer", padding: 2 }} data-testid={`prov-${f.k}-swatch`} />
       <input className="pb-input" value={value || ""} placeholder={f.ph} onChange={(e) => onChange(e.target.value)} style={{ flex: 1 }} data-testid={`prov-${f.k}`} />
+    </div>
+  );
+  if (f.type === "logo") return (
+    <div className="flex items-center gap-4 flex-wrap">
+      <label className="pb-btn pb-btn-ghost" style={{ cursor: "pointer" }}>
+        <Upload size={13} /> {value ? "Replace logo" : "Upload logo"}
+        <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style={{ display: "none" }}
+          onChange={(e) => { const file = e.target.files?.[0]; if (file) readLogo(file, onChange); e.target.value = ""; }} data-testid={`prov-${f.k}`} />
+      </label>
+      {value && <img src={value} alt="logo preview" style={{ height: 52, width: 52, objectFit: "contain", border: "1px solid var(--pb-border)", background: "var(--pb-onyx)", padding: 5 }} />}
+      {value && <button type="button" onClick={() => onChange("")} className="pb-mono" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pb-gray)" }} data-testid={`prov-${f.k}-remove`}>Remove</button>}
     </div>
   );
   return <input className="pb-input" value={value || ""} placeholder={f.ph} onChange={(e) => onChange(e.target.value)} data-testid={`prov-${f.k}`} />;
@@ -106,6 +141,7 @@ const TenantCard = ({ t, onPatch }) => {
     <div className="pb-card" style={{ padding: "26px 28px" }} data-testid={`tenant-${t.id}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
+          {t.logo_data && <img src={t.logo_data} alt="" style={{ height: 34, width: 34, objectFit: "contain", border: "1px solid var(--pb-border)", background: "var(--pb-onyx)", padding: 3 }} />}
           <span className="pb-serif" style={{ fontSize: 22 }}>{t.name}</span>
           <span className="pb-mono" style={{ fontSize: 11, color: "var(--pb-gray)" }}>/{t.slug}</span>
           <span className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", padding: "4px 9px", border: "1px solid var(--pb-border)", color: "var(--pb-gray-soft)" }}>{t.tier}</span>
@@ -118,6 +154,12 @@ const TenantCard = ({ t, onPatch }) => {
       </div>
 
       <CommandBlock command={t.command} id={t.id} />
+
+      {t.logo_data && (
+        <a href={t.logo_data} download={`${t.slug}-logo.png`} className="pb-mono" style={{ fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pb-gold)", display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14 }} data-testid={`tenant-logo-dl-${t.id}`}>
+          <Download size={12} /> Download logo
+        </a>
+      )}
 
       <div style={{ marginTop: 18, borderTop: "1px solid var(--pb-border-soft)", paddingTop: 16 }}>
         <div className="flex items-center justify-between mb-3">
