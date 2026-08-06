@@ -621,7 +621,6 @@ def build_tsa_command(t: dict) -> str:
 
     add("name", t.get("name"))
     add("slug", t.get("slug"))
-    add("type", (t.get("store_type") or "").lower())
     add("tier", (t.get("tier") or "").lower())
     add("primary", t.get("primary_color"))
     add("secondary", t.get("secondary_color"))

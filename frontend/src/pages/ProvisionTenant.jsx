@@ -8,7 +8,6 @@ import { useAuth, authHeader, formatApiErrorDetail } from "@/context/AuthContext
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const STORE_TYPES = ["School", "Team", "Business"];
 const TIERS = ["Starter", "Pro", "Studio"];
 
 const STATUS_META = {
@@ -34,7 +33,6 @@ const STEPS = [
   { title: "Identity", hint: "Who this tenant is. Slug is auto-generated from the name — edit if you want.", fields: [
     { k: "name", label: "Business Name", type: "text", ph: "e.g. Tee Shirt Ali" },
     { k: "slug", label: "Slug", type: "slug", ph: "auto from name" },
-    { k: "store_type", label: "Store Type", type: "select", opts: STORE_TYPES },
     { k: "tier", label: "Tier (entitlements)", type: "select", opts: TIERS },
   ]},
   { title: "First-Store Branding", hint: "Branding for the first store. Logo upload happens later in WP → Platform → Branding.", fields: [
@@ -113,7 +111,6 @@ const TenantCard = ({ t, onPatch }) => {
         <div className="flex items-center gap-3 flex-wrap">
           <span className="pb-serif" style={{ fontSize: 22 }}>{t.name}</span>
           <span className="pb-mono" style={{ fontSize: 11, color: "var(--pb-gray)" }}>/{t.slug}</span>
-          <span className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", padding: "4px 9px", border: "1px solid var(--pb-border)", color: "var(--pb-gray-soft)" }}>{t.store_type}</span>
           <span className="pb-mono" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", padding: "4px 9px", border: "1px solid var(--pb-border)", color: "var(--pb-gray-soft)" }}>{t.tier}</span>
         </div>
         <select value={t.status} onChange={(e) => onPatch(t.id, { status: e.target.value })} className="pb-mono"
@@ -156,7 +153,7 @@ export default function ProvisionTenant() {
 
   // wizard state
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({ store_type: "School", tier: "Starter" });
+  const [answers, setAnswers] = useState({ tier: "Starter" });
   const [slugEdited, setSlugEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -193,7 +190,7 @@ export default function ProvisionTenant() {
     } catch { load(); }
   };
 
-  const resetWizard = () => { setStep(0); setAnswers({ store_type: "School", tier: "Starter" }); setSlugEdited(false); setError(""); };
+  const resetWizard = () => { setStep(0); setAnswers({ tier: "Starter" }); setSlugEdited(false); setError(""); };
 
   const submit = async () => {
     setSaving(true); setError("");
